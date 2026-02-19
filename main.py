@@ -32,16 +32,13 @@ def format_docs(docs):
   """Format retrieved documents into a single string."""
   return "\n\n".join(doc.page_conetent for doc in docs)
 
-
-
-
-
-
 # ============================================================================
 # IMPLEMENTATION 1: Without LCEL (Simple Function-Based Approach)
 # ============================================================================
-def retrieval_chain_without_lcel(query: str):
-    """
+
+
+def retrieveal_chain_witout_lcel(query:str):
+  """
     Simple retrieval chain without LCEL.
     Manually retrieves documents, formats them, and generates a response.
 
@@ -52,17 +49,56 @@ def retrieval_chain_without_lcel(query: str):
     - Harder to compose with other chains
     - More verbose and error-prone
     """
-    # Step 1: Retrieve relevant documents
-    docs = retriever.invoke(query)
+  
+  #Step 1: Retrieve relevant documents
+  docs = retriever.invoke(query)
+  #Step 2: Format documents into context string
+  context = format_docs(docs)
+  #Step 3: Format the prompt with context and question
+  messages = prompt_template.format_message(context=context, question=query)
+  #Step 4 : Invoke LLM with the formatted mesagges
+  response = llm.invoke(messages)
 
-    # Step 2: Format documents into context string
-    context = format_docs(docs)
+  return response.content
+  
 
-    # Step 3: Format the prompt with context and question
-    messages = prompt_template.format_messages(context=context, question=query)
 
-    # Step 4: Invoke LLM with the formatted messages
-    response = llm.invoke(messages)
 
-    # Step 5: Return the content
-    return response.content
+
+
+
+
+
+
+
+
+
+
+
+# ============================================================================
+# IMPLEMENTATION 2: With LCEL (LangChain Expression Language) - BETTER APPROACH
+# ============================================================================
+def create_retrieval_chain_with_lcel():
+    """
+    Create a retrieval chain using LCEL (LangChain Expression Language).
+    Returns a chain that can be invoked with {"question": "..."}
+
+    Advantages over non-LCEL approach:
+    - Declarative and composable: Easy to chain operations with pipe operator (|)
+    - Built-in streaming: chain.stream() works out of the box
+    - Built-in async: chain.ainvoke() and chain.astream() available
+    - Batch processing: chain.batch() for multiple inputs
+    - Type safety: Better integration with LangChain's type system
+    - Less code: More concise and readable
+    - Reusable: Chain can be saved, shared, and composed with other chains
+    - Better debugging: LangChain provides better observability tools
+    """
+    retrieval_chain = (
+        RunnablePassthrough.assign(
+            context=itemgetter("question") | retriever | format_docs
+        )
+        | prompt_template
+        | llm
+        | StrOutputParser()
+    )
+    return retrieval_chain
